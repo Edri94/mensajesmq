@@ -31,7 +31,15 @@
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
   <ItemGroup>
+    <Reference Include="amqmdnet, Version=9.1.0.7, Culture=neutral, PublicKeyToken=dd3cb1c9aae9ec97, processorArchitecture=MSIL">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>..\..\..\..\..\..\..\Program Files\IBM\MQ\bin\amqmdnet.dll</HintPath>
+    </Reference>
+    <Reference Include="ConexionBDSQL">
+      <HintPath>..\..\ConexionBDSQL\ConexionBDSQL\bin\Debug\ConexionBDSQL.dll</HintPath>
+    </Reference>
     <Reference Include="System" />
+    <Reference Include="System.Configuration" />
     <Reference Include="System.Core" />
     <Reference Include="System.Xml.Linq" />
     <Reference Include="System.Data.DataSetExtensions" />
@@ -41,9 +49,25 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Configuracion\EscribeArchivoLOG\EscribeArchivoLOGConfig.cs" />
+    <Compile Include="Configuracion\EscribeArchivoLOG\EscribeArchivoLOGInstanceCollection.cs" />
+    <Compile Include="Configuracion\EscribeArchivoLOG\EscribeArchivoLOGInstanceElement.cs" />
+    <Compile Include="Configuracion\Headerih\HeaderihConfig.cs" />
+    <Compile Include="Configuracion\Headerih\HeaderihInstanceCollection.cs" />
+    <Compile Include="Configuracion\Headerih\HeaderihInstanceElement.cs" />
+    <Compile Include="Configuracion\Headerme\HeadermeConfig.cs" />
+    <Compile Include="Configuracion\Headerme\HeadermeInstanceCollection.cs" />
+    <Compile Include="Configuracion\Headerme\HeadermeInstanceElement.cs" />
+    <Compile Include="Configuracion\MqSeries\MqSeriesConfig.cs" />
+    <Compile Include="Configuracion\MqSeries\MqSeriesInstanceCollection.cs" />
+    <Compile Include="Configuracion\MqSeries\MqSeriesInstanceElement.cs" />
     <Compile Include="Mensajes.cs" />
     <Compile Include="MQ.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
+  <ItemGroup>
+    <None Include="App.config" />
+  </ItemGroup>
+  <ItemGroup />
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>

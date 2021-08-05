@@ -12,7 +12,7 @@ namespace MensajesMqNET
     {
         public string gstrRutaIni;
         public ConexionBD cnnConexion;
-        //public Recordset rssRegistro;
+        public string[] rssRegistro;
 
         public string gsPswdDB;
         public string gsUserDB;
@@ -81,6 +81,7 @@ namespace MensajesMqNET
             //mqsLectura = new MQQueue();
             mqsMsgEscribir = new MQMessage();
             mqsMsglectura = new MQMessage();
+
         }
 
         public bool MQConectar(string strMQManager, MQQueueManager objMQManager)
