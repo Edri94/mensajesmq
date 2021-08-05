@@ -145,7 +145,85 @@ namespace MensajesMqNET
 
         private void ProcesoBDtoMQQUEUEAuto()
         {
-            throw new NotImplementedException();
+            string Ls_MensajeMQ;       // Cadena con el mensaje armado con los registros de la base de datos
+            string Ls_MsgColector;       // Cadena para almecenar el COLECTOR
+            string Ls_HeaderMsg;       // Cadena para almacenar el HEADER del mensaje
+            string strQuery;       // Cadena para almacenar el Query a ejecutarse en la base de datos
+            int NumeroMsgEnviados;      // Contador para almacenar el número de mensajes procesados
+            string[] las_Autorizaciones;    // Arreglo para ingresar todos los registros que han sido enviados correctamente
+                                            // Para el armado de la solicitud
+            string ls_Operacion;    // 1  operacion
+            string ls_Oficina;    // 2  oficina
+            string ls_NumeroFunc;    // 3  codusu
+            string ls_Transaccion;    // 4  transaccion
+            string ls_CodigoOperacion;    // 5  tipo-oper
+            string ls_Cuenta;    // 6  cuenta-ced
+            string ls_Divisa;    // 7  divisa
+            string ls_Importe;    // 8  importe
+            string ls_Fecha_Ope;    // 9  Fecha (operacion)
+            string ls_Folio_Ope;    // 10 Folio
+            string ls_Status_Envio;    // 11 Status
+            string ls_Fecha;
+            string ls_Hora;
+
+            strQuery = "";
+
+            try
+            {
+                //Escribe("Inicia el envío de mensajes a Host: " + mQ.gsAccesoActual + " Función: " + strFuncionSQL);
+                NumeroMsgEnviados = 0;
+
+                strQuery = "SELECT" + (char)13;
+                strQuery = strQuery + "operacion," + (char)13;                         
+                strQuery = strQuery + "oficina," + (char)13;                          
+                strQuery = strQuery + "numero_funcionario," + (char)13;                
+                strQuery = strQuery + "id_transaccion," + (char)13;                    
+                strQuery = strQuery + "codigo_operacion," + (char)13;                 
+                strQuery = strQuery + "cuenta," + (char)13;                            
+                strQuery = strQuery + "divisa," + (char)13;                           
+                strQuery = strQuery + "importe," + (char)13;                          
+                strQuery = strQuery + "fecha_operacion," + (char)13;                   
+                strQuery = strQuery + "folio_autorizacion," + (char)13;                
+                strQuery = strQuery + "status_envio," + (char)13;                      
+                strQuery = strQuery + "CONVERT(char(8),getdate(),112)," + (char)13;    
+                strQuery = strQuery + "CONVERT(char(5),getdate(),108)" + (char)13;     
+                strQuery = strQuery + "FROM " + (char)13;
+                strQuery = strQuery + mQ.gsNameDB + "..TMP_AUTORIZACIONES_PU" + (char)13;
+                strQuery = strQuery + "WHERE status_envio = 0";
+
+                if(mQ.rssRegistro != null)
+                {
+                    if(mQ.MQConectar(Gs_MQManager, mQ.mqManager))
+                    {
+                        mQ.blnConectado = true;
+                    }
+                    else
+                    {
+                        mQ.psInsertarSQL(mQ.gsAccesoActual, 3, "ProcesoBDtoMQQUEUEAuto. Fallo conexión MQ-Manager " + Gs_MQManager + ":  mqSession.ReasonCode  -   mqSession.ReasonName", "MSG", "MQConectar");
+                        return;
+                    }
+
+                    int i = 0;
+                    do
+                    {
+                        i++;
+
+
+
+                    } while ( i < mQ.rssRegistro.Count() );
+                }
+                
+                //rssRegistro.Open strQuery
+
+
+
+            }
+            catch (Exception)
+            {
+
+                throw;
+            }
+
         }
 
         private void ProcesoBDtoMQQUEUEFunc()
@@ -243,8 +321,43 @@ namespace MensajesMqNET
                     if(Ls_MsgColector.Length > 0)
                     {
                         Ls_MensajeMQ = ASTA_ENTRADA(Ls_MsgColector, " Funcionario: " + ls_IDFuncionario);
+                        if(Ls_MensajeMQ != "")
+                        {
+                            //Escribe ("Mensaje Enviado: " + Ls_MensajeMQ);
+                            if(mQ.MQEnviarMsg(mQ.mqManager, Gs_MQQueueEscritura, mQ.mqsEscribir,mQ.mqsMsgEscribir, Ls_MensajeMQ,strReplyToMQ, sPersistencia, sExpirar))
+                            {
+                                //ReDim Preserve las_Funcionarios(NumeroMsgEnviados)
+                                las_Funcionarios[NumeroMsgEnviados] = ls_IDFuncionario;
+                                NumeroMsgEnviados = NumeroMsgEnviados + 1;
+                            }
+                            else
+                            {
+                                mQ.psInsertarSQL(mQ.gsAccesoActual, 4 , "ProcesoBDtoMQQUEUEFunc. Error durante el armado del formato PS9 funcion ASTA_ENTRADA. Error con el Funcionario: " + ls_IDFuncionario, "MSG", "ASTA_ENTRADA");
+                            }
+                        }
+                        else
+                        {
+                            mQ.psInsertarSQL(mQ.gsAccesoActual, 4, "ProcesoBDtoMQQUEUEFunc. Error durante el armado del formato PS9 funcion ASTA_ENTRADA. Error con el Funcionario: " + ls_IDFuncionario, "MSG", "ASTA_ENTRADA");
+                        }
+                    }
+                    else
+                    {
+                        //Escribe("No existen registros en la consulta de los datos de tabla TMP_FUNCIONARIOS_PU. ProcesoBDtoMQQUEUEFunc");
                     }
 
+
+                    mQ.MQDesconectar(mQ.mqManager, mQ.mqsEscribir);
+
+                    if(NumeroMsgEnviados > 0)
+                    {
+                        if(!ActualizaRegistrosFunc(las_Funcionarios))
+                        {
+                            //Escribe("Existieron errores al actualizar la tabla TMP_FUNCIONARIOS_PU");
+                        }
+                    }
+
+                    //Escribe("Envio de solicitures TKT -> Host Terminado. ProcesoBDtoMQQUEUEFunc");
+                    //Escribe("Solicitudes enviadas a MQ: " + NumeroMsgEnviados);
 
                 }
             }
@@ -256,6 +369,29 @@ namespace MensajesMqNET
 
 
 
+        }
+
+        private bool ActualizaRegistrosFunc(string[] IDFuncionario)
+        {
+            bool ActualizaRegistrosFunc = false;
+
+            string strQueryUpDate;
+            int ln_indice;
+
+            ActualizaRegistrosFunc = true;
+
+            for (ln_indice = 0; ln_indice < (IDFuncionario.Count()); ln_indice++)
+            {
+                strQueryUpDate = "UPDATE " + mQ.gsNameDB + "..TMP_FUNCIONARIOS_PU" + (char)13;
+                strQueryUpDate = strQueryUpDate + "SET  status_envio = 1" + (char)13;
+                strQueryUpDate = strQueryUpDate + "--  ,fecha_ultimo_mant = GETDATE()," + (char)13;
+                strQueryUpDate = strQueryUpDate + "WHERE status_envio = 0" + (char)13;
+                strQueryUpDate = strQueryUpDate + "AND id_funcionario = " + IDFuncionario[ln_indice];
+                //rssRegistro.Open strQueryUpDate
+            }
+
+
+            return ActualizaRegistrosFunc;
         }
 
         private string ASTA_ENTRADA(string strMsgColector, string psTipo)

@@ -170,7 +170,7 @@ namespace MensajesMqNET
 
         }
 
-        public bool MQEnviarMsg(MQQueueManager objMQManager ,string strMQCola, MQQueue objMQCola, MQMessage objMQMensaje, string ls_mensaje, string Ls_ReplayMQQueue, string strMensajeID = "")
+        public bool MQEnviarMsg(MQQueueManager objMQManager ,string strMQCola, MQQueue objMQCola, MQMessage objMQMensaje, string ls_mensaje, string Ls_ReplayMQQueue, string psPersistencia, string psExpirar, string strMensajeID = "")
         {
             try
             {
