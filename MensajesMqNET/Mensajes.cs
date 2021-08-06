@@ -6,6 +6,8 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using System;
+using System.IO;
 
 namespace MensajesMqNET
 {
@@ -650,9 +652,16 @@ namespace MensajesMqNET
         public void Escribe(string vData)
         {
             //Archivo = strlogFilePath & Format(Now(), "yyyyMMdd") & "-" & strlogFileName
+            string docPath = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
+
             if(Mb_GrabaLog)
             {
-                Console.WriteLine(vData);
+                using (StreamWriter outputFile = new StreamWriter(Path.Combine(docPath, "")))
+                {
+                    Console.WriteLine(vData);
+                    outputFile.WriteLine(vData);
+                }
+
             }
         }
 
