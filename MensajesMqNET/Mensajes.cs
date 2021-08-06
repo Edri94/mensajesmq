@@ -117,14 +117,14 @@ namespace MensajesMqNET
             {
                 return "error conexion";
             }
-            //EscribeArchivoLOGConfig("Comienza la función MAIN de la aplicación MensajesMQ: " + DateTime.Now.ToString() + " Tipo Función: '" + gsEjecutable + "'");
+            Escribe("Comienza la función MAIN de la aplicación MensajesMQ: " + DateTime.Now.ToString() + " Tipo Función: '" + gsEjecutable + "'");
             mQ.gsAccesoActual = DateTime.Now.ToString();
 
             if( ValidaInfoMQ(Ls_MsgVal))
             {
                 mQ.psInsertarSQL(mQ.gsAccesoActual, 1, Ls_MsgVal, "MSG", "Valida InfoMQ");
-                //Escribe("Termina el acceso a la aplicación MensajesMQ. Cheque la bitácora de errores en SQL. Tipo Función: '" + gsEjecutable + "'");
-                //Escribe("");
+                Escribe("Termina el acceso a la aplicación MensajesMQ. Cheque la bitácora de errores en SQL. Tipo Función: '" + gsEjecutable + "'");
+                Escribe("");
                 Desconectar();
                 return "desconectar";
             }
@@ -140,6 +140,10 @@ namespace MensajesMqNET
                 default:
                     break;
             }
+
+            Escribe("Termina el acceso a la aplicación MensajesMQ. Función SQL: " + strFuncionSQL);
+            Escribe("");
+
             return "";
         }
 
@@ -168,9 +172,11 @@ namespace MensajesMqNET
 
             strQuery = "";
 
+
             try
             {
-                //Escribe("Inicia el envío de mensajes a Host: " + mQ.gsAccesoActual + " Función: " + strFuncionSQL);
+                las_Autorizaciones = new string[mQ.rssRegistro.Count()]; //temporal el tamaño del arreglo, tnego q averiguar cual es con la info de la BD
+                Escribe("Inicia el envío de mensajes a Host: " + mQ.gsAccesoActual + " Función: " + strFuncionSQL);
                 NumeroMsgEnviados = 0;
 
                 strQuery = "SELECT" + (char)13;
@@ -190,8 +196,9 @@ namespace MensajesMqNET
                 strQuery = strQuery + "FROM " + (char)13;
                 strQuery = strQuery + mQ.gsNameDB + "..TMP_AUTORIZACIONES_PU" + (char)13;
                 strQuery = strQuery + "WHERE status_envio = 0";
+                //rssRegistro.Open strQuery
 
-                if(mQ.rssRegistro != null)
+                if (mQ.rssRegistro != null)
                 {
                     if(mQ.MQConectar(Gs_MQManager, mQ.mqManager))
                     {
@@ -208,14 +215,98 @@ namespace MensajesMqNET
                     {
                         i++;
 
+                        ls_Operacion = Int32.Parse(mQ.rssRegistro[0].Trim()).ToString("D7");
+                        ls_Oficina = Int32.Parse(mQ.rssRegistro[1].Trim()).ToString("D4");
+                        ls_NumeroFunc = mQ.rssRegistro[2].Trim() + Space(8 - mQ.rssRegistro[2].Trim().Length);
+                        ls_Transaccion = Int32.Parse(mQ.rssRegistro[3].Trim()).ToString("D4");
+                        ls_CodigoOperacion = mQ.rssRegistro[4].Trim() + Space(3);
+                        ls_Cuenta = mQ.rssRegistro[5].Trim() + Space(10);
+                        ls_Divisa = mQ.rssRegistro[6].Trim() + Space(3);
+                        ls_Importe = mQ.rssRegistro[7].Trim();
+                        ls_Fecha_Ope = mQ.rssRegistro[8].Trim();
+                        ls_Folio_Ope = Int32.Parse(mQ.rssRegistro[9].Trim()).ToString("D12");
+                        ls_Status_Envio = Int32.Parse(mQ.rssRegistro[10].Trim()).ToString("D1");
+                        
+                        ls_Fecha =Left(mQ.rssRegistro[0].Trim() + Space(8), 8);
+                        ls_Hora = Left(mQ.rssRegistro[0].Trim().Replace(':',' ') + Space(4), 4);
 
+                        Ls_MsgColector = Left(strFuncionSQL.Trim() + "        ", 8);
+                        Ls_MsgColector = Ls_MsgColector + ls_Fecha + ls_Hora;
+                        Ls_MsgColector = Ls_MsgColector + ls_Operacion + ls_Oficina;
+                        Ls_MsgColector = Ls_MsgColector + ls_NumeroFunc + ls_Transaccion;
+                        Ls_MsgColector = Ls_MsgColector + ls_CodigoOperacion + ls_Cuenta;
+                        Ls_MsgColector = Ls_MsgColector + ls_Divisa + ls_Importe;
+                        Ls_MsgColector = Ls_MsgColector + ls_Fecha_Ope + ls_Folio_Ope;
+
+                        if(Ls_MsgColector.Length > 0)
+                        {
+                            Ls_MensajeMQ = ASTA_ENTRADA(Ls_MsgColector, " Operación: " + ls_Operacion);
+                            if(Ls_MensajeMQ != "")
+                            {
+                                Escribe("Mensaje Enviado: " + Ls_MensajeMQ);
+                                if (mQ.MQEnviarMsg(mQ.mqManager, Gs_MQQueueEscritura, mQ.mqsEscribir, mQ.mqsMsgEscribir, Ls_MensajeMQ, strReplyToMQ, sPersistencia, sExpirar))
+                                {
+                                    las_Autorizaciones[NumeroMsgEnviados] = ls_Operacion;
+                                    NumeroMsgEnviados = NumeroMsgEnviados + 1;
+                                }
+                                else
+                                {
+                                    mQ.psInsertarSQL(mQ.gsAccesoActual, 5, "ProcesoBDtoMQQUEUEAuto. Error al escribir la solicitud en la MQ QUEUE: " + Gs_MQQueueEscritura + ". Error con la Operación: " + ls_Operacion, "MSG", "MQEnviarMsg");
+                                }
+                            }
+                            else 
+                            {
+                                mQ.psInsertarSQL(mQ.gsAccesoActual, 4, "ProcesoBDtoMQQUEUEAuto. Error durante el armado del formato PS9 funcion ASTA_ENTRADA. Error con la Operacion: " + ls_Operacion, "MSG", "ASTA_ENTRADA");
+                            }
+                        }
+                        else
+                        {
+                            Escribe("Error al armar el Layout Actualización del Autorizaciones TKT-CED. Error con la Operación : " + ls_Operacion);
+                        }
 
                     } while ( i < mQ.rssRegistro.Count() );
                 }
-                
-                //rssRegistro.Open strQuery
+                else
+                {
+                    Escribe("Cero registros en la consulta de los datos, tabla TMP_AUTORIZACIONES_PU. ProcesoBDtoMQQUEUEAuto");
+                }
 
+                mQ.MQDesconectar(mQ.mqManager, mQ.mqsEscribir);
 
+                if(NumeroMsgEnviados > 0 )
+                {
+                    if(!ActualizaRegistrosAuto(las_Autorizaciones))
+                    {
+                        Escribe("Existieron errores al actualizar la tabla TMP_AUTORIZACIONES_PU");
+                    }
+                }
+            }
+            catch (Exception)
+            {
+                Escribe("Se presentó un error durante la ejecución de la función ProcesoBDtoMQQUEUEAuto. Vea log y tabla TMP_AUTORIZACIONES_PU");
+                throw;
+            }
+
+        }
+
+        private bool ActualizaRegistrosAuto(string[] IDAutorizacion)
+        {
+            bool ActualizaRegistrosAuto = false;
+            try
+            {
+                string strQueryUpDate;
+                int ln_indice;
+
+                for (ln_indice = 0; ln_indice < IDAutorizacion.Count(); ln_indice ++)
+                {
+                    strQueryUpDate = "UPDATE " + mQ.gsNameDB + "..TMP_AUTORIZACIONES_PU " + (char)13;
+                    strQueryUpDate = strQueryUpDate + "SET  status_envio = 1 " + (char)13;
+                    strQueryUpDate = strQueryUpDate + "WHERE status_envio = 0 " + (char)13;
+                    strQueryUpDate = strQueryUpDate + "AND operacion = " + IDAutorizacion[ln_indice];
+                    //rssRegistro.Open strQueryUpDate
+                }
+                ActualizaRegistrosAuto = true;
+                return ActualizaRegistrosAuto;
 
             }
             catch (Exception)
@@ -224,6 +315,7 @@ namespace MensajesMqNET
                 throw;
             }
 
+            return ActualizaRegistrosAuto;
         }
 
         private void ProcesoBDtoMQQUEUEFunc()
@@ -250,7 +342,7 @@ namespace MensajesMqNET
 
             try
             {
-                //Escribe("Inicia el envío de mensajes a Host: " + mQ.gsAccesoActual + " Función: " + strFuncionSQL);
+                Escribe("Inicia el envío de mensajes a Host: " + mQ.gsAccesoActual + " Función: " + strFuncionSQL);
                 NumeroMsgEnviados = 0;
                 
                 // Logica para recuperar los n mensajes de la tabla temporal en db.funcionario
@@ -323,7 +415,7 @@ namespace MensajesMqNET
                         Ls_MensajeMQ = ASTA_ENTRADA(Ls_MsgColector, " Funcionario: " + ls_IDFuncionario);
                         if(Ls_MensajeMQ != "")
                         {
-                            //Escribe ("Mensaje Enviado: " + Ls_MensajeMQ);
+                            Escribe ("Mensaje Enviado: " + Ls_MensajeMQ);
                             if(mQ.MQEnviarMsg(mQ.mqManager, Gs_MQQueueEscritura, mQ.mqsEscribir,mQ.mqsMsgEscribir, Ls_MensajeMQ,strReplyToMQ, sPersistencia, sExpirar))
                             {
                                 //ReDim Preserve las_Funcionarios(NumeroMsgEnviados)
@@ -342,7 +434,7 @@ namespace MensajesMqNET
                     }
                     else
                     {
-                        //Escribe("No existen registros en la consulta de los datos de tabla TMP_FUNCIONARIOS_PU. ProcesoBDtoMQQUEUEFunc");
+                        Escribe("No existen registros en la consulta de los datos de tabla TMP_FUNCIONARIOS_PU. ProcesoBDtoMQQUEUEFunc");
                     }
 
 
@@ -352,12 +444,12 @@ namespace MensajesMqNET
                     {
                         if(!ActualizaRegistrosFunc(las_Funcionarios))
                         {
-                            //Escribe("Existieron errores al actualizar la tabla TMP_FUNCIONARIOS_PU");
+                            Escribe("Existieron errores al actualizar la tabla TMP_FUNCIONARIOS_PU");
                         }
                     }
 
-                    //Escribe("Envio de solicitures TKT -> Host Terminado. ProcesoBDtoMQQUEUEFunc");
-                    //Escribe("Solicitudes enviadas a MQ: " + NumeroMsgEnviados);
+                    Escribe("Envio de solicitures TKT -> Host Terminado. ProcesoBDtoMQQUEUEFunc");
+                    Escribe("Solicitudes enviadas a MQ: " + NumeroMsgEnviados);
 
                 }
             }
@@ -409,7 +501,7 @@ namespace MensajesMqNET
 
                 if(ls_TempColectorMsg.Length >  Int32.Parse(strColectorMaxLeng))
                 {
-                    //Escribe("La longitud del colector supera el maximo permitido");
+                    Escribe("La longitud del colector supera el maximo permitido");
                     return "ErrorASTA";
                 }
 
@@ -422,7 +514,7 @@ namespace MensajesMqNET
 
                 if(ls_BloqueME.Length > Int32.Parse(strMsgMaxLeng.Trim()))
                 {
-                    //Escribe("La longitud del Bloque ME supera el maximo permitido");
+                    Escribe("La longitud del Bloque ME supera el maximo permitido");
                     return "ErrorASTA";
                 }
 
@@ -460,7 +552,7 @@ namespace MensajesMqNET
 
                 if(ln_longCOLECTOR > Int32.Parse(strPS9MaxLeng))
                 {
-                    //Escribe("La longitud del Layout PS9 supera el maximo permitido");
+                    Escribe("La longitud del Layout PS9 supera el maximo permitido");
                     return "ErrorASTA";
                 }
 
@@ -552,6 +644,16 @@ namespace MensajesMqNET
             //mQ.cnnConexion.Close();
             //Set rssRegistro = Nothing
             mQ.cnnConexion = null;
+        }
+
+
+        public void Escribe(string vData)
+        {
+            //Archivo = strlogFilePath & Format(Now(), "yyyyMMdd") & "-" & strlogFileName
+            if(Mb_GrabaLog)
+            {
+                Console.WriteLine(vData);
+            }
         }
 
         public string Space(int veces)
